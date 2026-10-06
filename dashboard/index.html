@@ -42,13 +42,10 @@ h1,h2,h3,p{margin:0}
 .dept{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .dept.running{border-color:var(--run);box-shadow:0 0 0 2px var(--run-bg)}.dept.blocked{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-bg)}
 .dept .hd{display:flex;justify-content:space-between;align-items:center;gap:6px}.dept h3{font-size:14.5px}
-.chain{display:flex;flex-direction:column;gap:0}
-.node{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12.5px;background:var(--bg)}
-.node .d{width:9px;height:9px;border-radius:50%;background:var(--line2);flex:none}
-.node.running{border-color:var(--run);background:var(--run-bg)}.node.running .d{background:var(--run)}
-.node.done .d{background:var(--ok)}.node.blocked{border-color:var(--bad);background:var(--bad-bg)}.node.blocked .d{background:var(--bad)}
-.node .st{margin-left:auto;font-size:11px;color:var(--sub)}
-.arrow{align-self:center;color:var(--line2);font-size:10px;line-height:9px}
+.room{display:block;width:100%;height:auto;image-rendering:pixelated;border-radius:6px;border:2px solid #2a3550;background:#a5714a}
+.room.sel{cursor:pointer}
+.ceoroom{display:block;width:100%;max-width:440px;height:auto;image-rendering:pixelated;border-radius:6px;border:2px solid #2a3550}
+.pixl{font-family:"DotGothic16","Zen Kaku Gothic New",sans-serif}
 .now{font-size:12.5px;min-height:3.2em;overflow-wrap:anywhere}
 .foot{font-size:11.5px;color:var(--sub);display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap}
 .bot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:12px}
@@ -67,7 +64,7 @@ pre{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(-
 @media(max-width:520px){.depts{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:no-preference){.node.running .d{animation:pulse 1.4s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}}
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 
 <div class="wrap">
   <div class="top">
@@ -83,7 +80,7 @@ pre{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(-
   </div>
 
   <section class="org" aria-label="組織図">
-    <div class="ceo">社長(あなた)</div><div class="trunk"></div><div class="rail"></div>
+    <canvas class="ceoroom" id="ceoCanvas" width="480" height="144" aria-label="社長室"></canvas><div class="trunk"></div><div class="rail"></div>
     <div class="depts" id="depts"></div>
   </section>
 
@@ -123,6 +120,7 @@ function renderEsc(){
     <div class="q">${esc(e.question)}</div>
     <div class="row"><input aria-label="回答" class="ans" maxlength="400" placeholder="回答・指示を書く" style="flex:1 1 200px"><button class="res">回答して解決</button></div></div>`).join("")
     :'<div class="none">いま社長の判断を待っているものはありません。</div>';
+  if(typeof drawAll==="function")drawAll();
   $("esc").querySelectorAll(".e").forEach(el=>el.querySelector(".res").onclick=async()=>{
     if(!db)return;const id=el.dataset.id,a=el.querySelector(".ans").value.trim();
     try{await db.doc("escalations/"+id).update({status:"resolved",answer:a,resolvedAt:new Date().toISOString()})}catch(e){el.querySelector(".meta").insertAdjacentHTML("beforeend",' <span class="err">保存できませんでした</span>')}});
@@ -135,16 +133,27 @@ function renderStats(){
   $("tToday").textContent=T;$("tWeek").textContent=W;$("tQueue").textContent=reqs.filter(r=>r.status==="pending").length;
   $("stats").innerHTML='<span></span><span class="h">今日</span><span class="h">7日間</span>'+DEPTS.map(d=>`<span>${d.name}</span><span class="mono">${per[d.id].t}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><span class="mono" style="min-width:1.5em">${per[d.id].w}</span><span class="bar" style="flex:1"><i style="width:${per[d.id].w/mx*100}%"></i></span></span>`).join("");
 }
+let selStage={};
+function buildDepts(){
+  $("depts").innerHTML=DEPTS.map(d=>`<article class="dept" id="dp-${d.id}"><div class="hd"><h3>${d.name}部</h3><span class="pill s-idle" id="dpp-${d.id}">待機</span></div>
+    <canvas class="room sel" id="cv-${d.id}" width="${RW*PS}" height="${RH*PS}" role="img" aria-label="${d.name}部のオフィス。担当をクリックすると詳細が出ます"></canvas>
+    <div class="now" id="dpn-${d.id}"></div><div class="foot"><span id="dpq-${d.id}"></span><span id="dpt-${d.id}"></span></div></article>`).join("");
+  DEPTS.forEach(d=>{$("cv-"+d.id).addEventListener("click",e=>{
+    const r=e.currentTarget.getBoundingClientRect(),y=(e.clientY-r.top)/r.height*RH;
+    const i=Math.max(0,Math.min(4,Math.floor((y-HEAD)/CELL)));selStage[d.id]=ROLES[i].id;renderDepts()})});
+}
 function renderDepts(){
-  $("depts").innerHTML=DEPTS.map(d=>{
+  DEPTS.forEach(d=>{
     const x=deps[d.id]||{},st=x.stages||{},state=x.state||"idle";
     const q=reqs.filter(r=>r.dept===d.id&&r.status!=="done").length;
-    const act=ROLES.find(r=>(st[r.id]||{}).state==="running")||ROLES.find(r=>(st[r.id]||{}).state==="blocked");
-    const nowTxt=state==="idle"?'<span class="hint">待機中。依頼を待っています。</span>':`<b>${esc(x.topic||"")}</b>${act?`<br>${act.name}: ${esc((st[act.id]||{}).summary||"")}`:state==="done"?"<br>5体すべて完了":""}${x.note?`<br><span class="err">${esc(x.note)}</span>`:""}`;
-    return `<article class="dept ${state}"><div class="hd"><h3>${d.name}部</h3><span class="pill s-${state}">${LABEL[state]||state}</span></div>
-      <div class="chain">${ROLES.map((r,i)=>{const s=(st[r.id]||{}).state||"idle";return (i?'<div class="arrow">▼</div>':"")+`<div class="node ${s}" title="${esc((st[r.id]||{}).summary||"")}"><span class="d"></span>${r.name}<span class="st">${LABEL[s]}</span></div>`}).join("")}</div>
-      <div class="now">${nowTxt}</div>
-      <div class="foot"><span>待ち依頼 ${q}件</span><span>${x.updatedAt?ago(x.updatedAt):""}</span></div></article>`}).join("");
+    $("dp-"+d.id).className="dept "+state;
+    const p=$("dpp-"+d.id);p.className="pill s-"+state;p.textContent=LABEL[state]||state;
+    const sel=selStage[d.id]&&ROLES.find(r=>r.id===selStage[d.id]);
+    const act=sel||ROLES.find(r=>(st[r.id]||{}).state==="running")||ROLES.find(r=>(st[r.id]||{}).state==="blocked");
+    $("dpn-"+d.id).innerHTML=state==="idle"&&!sel?'<span class="hint">全員待機中。依頼を待っています。</span>':`${x.topic?`<b>${esc(x.topic)}</b><br>`:""}${act?`${act.name}担当: ${esc((st[act.id]||{}).summary||LABEL[(st[act.id]||{}).state||"idle"])}`:state==="done"?"5体すべて完了":""}${x.note?`<br><span class="err">${esc(x.note)}</span>`:""}`;
+    $("dpq-"+d.id).textContent="待ち依頼 "+q+"件";$("dpt-"+d.id).textContent=x.updatedAt?ago(x.updatedAt):"";
+  });
+  drawAll();
 }
 function renderQueue(){
   const open=reqs.filter(r=>r.status!=="done").sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
@@ -158,6 +167,79 @@ function renderRuns(){
   $("runs").querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const t=l[+b.dataset.copy].final;try{await navigator.clipboard.writeText(t);b.textContent="コピーしました"}catch{b.textContent="下の文を選択してコピー"}});
 }
 function all(){renderEsc();renderStats();renderDepts();renderQueue();renderRuns()}
+
+/* ---- pixel office ---- */
+const PS=4,RW=80,CELL=22,HEAD=6,RH=HEAD+CELL*5+4;
+const PAL={floorA:"#b07d52",floorB:"#a5714a",wall:"#3b4a63",trim:"#2a3550",desk:"#8a6240",deskD:"#6b4a2f",mon:"#1c2230",chair:"#4a5366",skin:"#f1c9a0",ink:"#1a1a22",paper:"#fffbe8",green:"#3ecf7a",amber:"#f2b45a",red:"#e5483d",plant:"#3f9b5a",pot:"#8a4b2e"};
+const LOOK={strategist:{hair:"#5b3a8c",shirt:"#7a56c2"},researcher:{hair:"#2b2b33",shirt:"#3b82c4"},writer:{hair:"#8a4b1f",shirt:"#e08a2e"},editor:{hair:"#c9c2b8",shirt:"#c24a4a"},publisher:{hair:"#1f5c4a",shirt:"#2fa58a"}};
+let frame=0;
+function R(c,col,x,y,w,h){c.fillStyle=col;c.fillRect(x,y,w,h)}
+function setup(cv,w,h){const c=cv.getContext("2d");c.setTransform(PS,0,0,PS,0,0);c.imageSmoothingEnabled=false;return c}
+function plant(c,x,y){R(c,PAL.pot,x+1,y+5,4,3);R(c,PAL.plant,x,y+1,6,4);R(c,PAL.plant,x+2,y,2,2)}
+function txt(c,t,x,y,col,size){c.fillStyle=col;c.font=(size||6)+"px DotGothic16,sans-serif";c.textBaseline="top";c.fillText(t,x,y)}
+function person(c,x,y,role,state,f){
+  const L=LOOK[role];const sleeping=state==="idle",typing=state==="running",bob=(state==="done"&&f%4<2)?-1:0,shake=(state==="blocked"&&f%2)?1:0;
+  R(c,PAL.chair,x-1,y+7,9,3);
+  const yy=y+bob;
+  R(c,L.hair,x+1+shake,yy,5,2);R(c,PAL.skin,x+1+shake,yy+2,5,3);
+  if(sleeping){R(c,PAL.ink,x+2+shake,yy+3,1,1);R(c,PAL.ink,x+4+shake,yy+3,1,1)}
+  else{R(c,PAL.ink,x+2+shake,yy+3,1,1);R(c,PAL.ink,x+4+shake,yy+3,1,1)}
+  R(c,L.shirt,x,yy+5,7,4);
+  if(role==="strategist")R(c,PAL.ink,x+1+shake,yy+2,5,1);
+  if(role==="editor")R(c,"#e5483d",x+7,yy+6,1,3);
+  if(role==="writer")R(c,"#f5d742",x+7,yy+5,1,3);
+  if(role==="researcher")R(c,"#bfe6ff",x+7,yy+6,2,2);
+  if(role==="publisher")R(c,L.hair,x+1,yy-1,5,1);
+  if(typing){const h=f%2?0:-1;R(c,PAL.skin,x-1,yy+4+h,1,2);R(c,PAL.skin,x+7,yy+4-h,1,2)}
+}
+function monitor(c,x,y,state,f){
+  R(c,PAL.mon,x,y,13,9);
+  const sc=state==="running"?(f%2?"#2f6fb5":"#3a7fc8"):state==="done"?"#1f8f55":state==="blocked"?(f%2?"#b3261e":"#7a1a14"):"#2a3140";
+  R(c,sc,x+1,y+1,11,6);R(c,PAL.mon,x+5,y+9,3,2);
+  if(state==="running"){for(let i=0;i<3;i++)R(c,"#cfe4ff",x+2,y+2+i*2,3+((i+f)%3)*2,1)}
+  if(state==="done"){R(c,"#d9ffe8",x+4,y+4,1,1);R(c,"#d9ffe8",x+5,y+5,1,1);R(c,"#d9ffe8",x+6,y+4,1,1);R(c,"#d9ffe8",x+7,y+3,1,1)}
+}
+function drawRoom(id){
+  const cv=$("cv-"+id);if(!cv)return;const c=setup(cv);
+  const x=deps[id]||{},st=x.stages||{};
+  for(let yy=0;yy<RH;yy+=4)for(let xx=0;xx<RW;xx+=4)R(c,((xx+yy)/4)%2?PAL.floorA:PAL.floorB,xx,yy,4,4);
+  R(c,PAL.wall,0,0,RW,HEAD);R(c,PAL.trim,0,HEAD-1,RW,1);
+  ROLES.forEach((r,i)=>{
+    const s=(st[r.id]||{}).state||"idle",y0=HEAD+i*CELL;
+    plant(c,2,y0+6);
+    R(c,PAL.deskD,24,y0+8,40,2);R(c,PAL.desk,24,y0+4,40,6);R(c,PAL.deskD,24,y0+9,40,1);
+    monitor(c,38,y0-2,s,frame);
+    R(c,"#e9e3d3",52,y0+5,6,3);R(c,PAL.ink,53,y0+6,4,1);
+    person(c,34,y0+9,r.id,s,frame);
+    txt(c,r.name,3,y0+16,"#fff4de",6);
+    if(s==="blocked"){R(c,PAL.red,56,y0+10,7,8);txt(c,"!",58,y0+10,"#fff",7)}
+    if(s==="idle"&&frame%6<3)txt(c,"z",46,y0+8,"#dfe8ff",6);
+    if(s==="done"){R(c,PAL.green,56,y0+11,7,6);R(c,"#fff",58,y0+13,1,1);R(c,"#fff",59,y0+14,1,1);R(c,"#fff",60,y0+13,2,1)}
+    // handoff paper: previous done, this running
+    if(i>0&&s==="running"&&((st[ROLES[i-1].id]||{}).state==="done")){const py=y0-8+((frame%4)*2);R(c,PAL.paper,66,py,5,6);R(c,"#b9b49c",67,py+2,3,1)}
+  });
+}
+function drawCeo(){
+  const cv=$("ceoCanvas");if(!cv)return;const c=cv.getContext("2d");c.setTransform(PS,0,0,PS,0,0);c.imageSmoothingEnabled=false;
+  const W=120,H=36;
+  for(let yy=0;yy<H;yy+=4)for(let xx=0;xx<W;xx+=4)R(c,((xx+yy)/4)%2?"#5b6f94":"#52648a",xx,yy,4,4);
+  R(c,PAL.wall,0,0,W,9);R(c,PAL.trim,0,8,W,1);
+  R(c,"#bfe0ff",12,1,16,6);R(c,PAL.trim,19,1,2,6);R(c,"#bfe0ff",92,1,16,6);R(c,PAL.trim,99,1,2,6);
+  plant(c,3,22);plant(c,110,22);
+  R(c,PAL.deskD,36,28,48,2);R(c,"#9a6e43",36,22,48,7);
+  monitor(c,53,12,"running",frame);
+  const open=escs.filter(e=>e.status==="open").length;
+  person(c,56,17,"strategist",open?"blocked":"done",frame);
+  R(c,"#c8a24a",58,16,3,1);
+  txt(c,"社長",70,24,"#fff4de",6);
+  if(open){R(c,PAL.red,74,10,13,9);txt(c,"!"+open,76,11,"#fff",7)}
+  else{R(c,"#f4efe2",74,17,5,4);R(c,"#d7cfb8",79,18,1,2)}
+}
+function drawAll(){DEPTS.forEach(d=>drawRoom(d.id));drawCeo()}
+const calm=matchMedia("(prefers-reduced-motion:reduce)").matches;
+buildDepts();
+(document.fonts&&document.fonts.load?document.fonts.load("6px DotGothic16"):Promise.resolve()).finally(()=>{drawAll();if(!calm)setInterval(()=>{frame++;drawAll()},300)});
+
 setInterval(all,30000);all();
 
 (async()=>{
