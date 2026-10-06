@@ -1,0 +1,13 @@
+{
+  "state": "idle",
+  "runId": "",
+  "topic": "",
+  "updatedAt": "",
+  "stages": {
+    "strategist": { "state": "idle", "summary": "", "updatedAt": "" },
+    "researcher": { "state": "idle", "summary": "", "updatedAt": "" },
+    "writer":     { "state": "idle", "summary": "", "updatedAt": "" },
+    "editor":     { "state": "idle", "summary": "", "updatedAt": "" },
+    "publisher":  { "state": "idle", "summary": "", "updatedAt": "" }
+  }
+}
