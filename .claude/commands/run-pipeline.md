@@ -23,6 +23,7 @@ Agent ツールで `{部署id}-strategist` → `-researcher` → `-writer` → `
 - 最後の体が **経営判断(exec)** の場合は、成果物の要点を必ず `escalations` に「社長の最終判断が必要」として1件上げる。
 - `runs` コレクションに1件追加(doc_id = runId): `{dept, topic, platform, finishedAt, angle(1行), hook(あれば1行), final(final.mdの全文)}`。
 - 依頼ドキュメントがあれば `status` を `done` に。
+- `PushNotification` が使えるなら、完了を1行で通知する(「○○部が完了: テーマ」)。
 - 最後に、部署・角度・最終ファイルの場所(`runs/{runId}/final.md`)を3-4行で報告する。外部への送信・投稿・公開は一切しない。
 
 ## 4. ツールが使えない場合

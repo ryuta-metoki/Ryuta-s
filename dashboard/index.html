@@ -28,7 +28,7 @@ h1,h2,h3,p{margin:0}
 .card h2{font-size:14px;margin-bottom:8px;display:flex;gap:8px;align-items:center}
 .esc{display:flex;flex-direction:column;gap:8px}
 .esc .e{border:1px solid var(--bad);background:var(--bad-bg);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
-.esc .q{overflow-wrap:anywhere}.esc .meta{font-size:12px;color:var(--sub)}
+.td{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:7px 10px}.td .q{flex:1;min-width:0;overflow-wrap:anywhere}.td .pill{flex:none;margin-top:1px}.esc .q{overflow-wrap:anywhere}.esc .meta{font-size:12px;color:var(--sub)}
 .none{color:var(--sub);border:1px dashed var(--line2);border-radius:8px;padding:9px 10px}
 .stats{display:grid;grid-template-columns:auto repeat(2,1fr);gap:4px 12px;align-items:center}
 .stats .h{font-size:11.5px;color:var(--sub)}
@@ -69,13 +69,13 @@ pre{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(-
 <div class="wrap">
   <div class="top">
     <section class="card">
-      <h2>社長への要確認 <span class="pill s-idle" id="escCount">0件</span></h2>
+      <h2>いま社長がやること <span class="pill s-idle" id="escCount">0件</span></h2>
       <div class="esc" id="esc"></div>
     </section>
     <section class="card">
       <h2>実績</h2>
       <div class="tot"><div><div class="hint">今日の完了</div><b id="tToday">0</b></div><div><div class="hint">7日間の完了</div><b id="tWeek">0</b></div><div><div class="hint">処理待ち依頼</div><b id="tQueue">0</b></div></div>
-      <div class="stats" id="stats"></div>
+      <div class="stats" id="stats"></div><div id="report" style="margin-top:8px"></div>
     </section>
   </div>
 
@@ -113,17 +113,37 @@ const ago=iso=>{if(!iso)return"";const d=(Date.now()-new Date(iso))/1000;if(isNa
 let db=null,deps={},reqs=[],runs=[],escs=[];
 $("dept").innerHTML=DEPTS.map(d=>`<option value="${d.id}">${d.name}</option>`).join("");
 
+let reports=[];
+const seenKey="seenRuns";
+function seenSet(){try{return new Set(JSON.parse(localStorage.getItem(seenKey)||"[]"))}catch{return new Set()}}
+function markSeen(id){try{const x=seenSet();x.add(id);localStorage.setItem(seenKey,JSON.stringify([...x].slice(-200)))}catch{}}
+function todoItems(){
+  const items=[],now=Date.now();
+  escs.filter(e=>e.status==="open").sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||"")).forEach(e=>items.push({kind:"esc",pri:1,e}));
+  DEPTS.forEach(d=>{const x=deps[d.id]||{};if(x.state==="blocked"&&!escs.some(e=>e.status==="open"&&e.dept===d.id))items.push({kind:"txt",pri:2,tag:"止まっている",text:`${d.name}部が止まっています。${x.note||"理由を確認して、入力を足して再依頼してください。"}`})});
+  const pend=reqs.filter(r=>r.status==="pending").sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
+  if(pend.length){const old=pend[0],h=Math.floor((now-new Date(old.createdAt))/36e5);items.push({kind:"txt",pri:h>=2?2:3,tag:"処理待ち",text:`依頼が${pend.length}件待っています(最古: ${dname(old.dept)}部「${old.topic}」${h>=1?h+"時間前":"さきほど"})。Claude Code で /run-pipeline を実行するか、自動処理を待ちます。`})}
+  const seen=seenSet();
+  runs.filter(r=>now-new Date(r.finishedAt)<48*36e5&&!seen.has(r.id)).slice(0,3).forEach(r=>items.push({kind:"run",pri:3,r}));
+  const wk=now-7*864e5;
+  DEPTS.forEach(d=>{if(!runs.some(r=>r.dept===d.id&&new Date(r.finishedAt)>=wk)&&!pend.some(r=>r.dept===d.id)&&(deps[d.id]||{}).state!=="running")items.push({kind:"txt",pri:4,tag:"稼働なし",text:`${d.name}部は7日間、成果物がありません。依頼を出すか、この部署を使わない理由を決めます。`})});
+  return items.sort((a,b)=>a.pri-b.pri);
+}
 function renderEsc(){
-  const open=escs.filter(e=>e.status==="open").sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
-  $("escCount").textContent=open.length+"件";$("escCount").className="pill "+(open.length?"s-open":"s-idle");
-  $("esc").innerHTML=open.length?open.map(e=>`<div class="e" data-id="${esc(e.id)}"><div class="meta">${esc(dname(e.dept))}部 ／ ${esc(e.stage||"")} ／ ${ago(e.createdAt)}</div>
-    <div class="q">${esc(e.question)}</div>
-    <div class="row"><input aria-label="回答" class="ans" maxlength="400" placeholder="回答・指示を書く" style="flex:1 1 200px"><button class="res">回答して解決</button></div></div>`).join("")
-    :'<div class="none">いま社長の判断を待っているものはありません。</div>';
-  if(typeof drawAll==="function")drawAll();
+  const items=todoItems(),hasEsc=items.some(i=>i.kind==="esc");
+  $("escCount").textContent=items.length+"件";$("escCount").className="pill "+(hasEsc?"s-open":items.length?"s-running":"s-idle");
+  $("esc").innerHTML=items.length?items.slice(0,8).map((it,n)=>{
+    if(it.kind==="esc"){const e=it.e;return `<div class="e" data-id="${esc(e.id)}"><div class="meta"><span class="pill s-open">判断待ち</span> ${esc(dname(e.dept))}部 ／ ${esc(e.stage||"")} ／ ${ago(e.createdAt)}</div>
+      <div class="q">${esc(e.question)}</div><div class="row"><input aria-label="回答" class="ans" maxlength="400" placeholder="回答・指示を書く" style="flex:1 1 200px"><button class="res">回答して解決</button></div></div>`}
+    if(it.kind==="run"){const r=it.r;return `<div class="td"><span class="pill s-done">確認</span><div class="q"><b>${esc(dname(r.dept))}部の成果物を確認</b> 「${esc(r.topic)}」を見て、必要なら公開・送信します。</div><button class="ghost seen" data-rid="${esc(r.id)}">確認した</button></div>`}
+    return `<div class="td"><span class="pill ${it.pri<=2?"s-blocked":"s-pending"}">${it.tag}</span><div class="q">${esc(it.text)}</div></div>`}).join("")
+    :'<div class="none">いまやることはありません。新しい依頼を出す時間です。</div>';
   $("esc").querySelectorAll(".e").forEach(el=>el.querySelector(".res").onclick=async()=>{
     if(!db)return;const id=el.dataset.id,a=el.querySelector(".ans").value.trim();
     try{await db.doc("escalations/"+id).update({status:"resolved",answer:a,resolvedAt:new Date().toISOString()})}catch(e){el.querySelector(".meta").insertAdjacentHTML("beforeend",' <span class="err">保存できませんでした</span>')}});
+  $("esc").querySelectorAll(".seen").forEach(b=>b.onclick=()=>{markSeen(b.dataset.rid);renderEsc()});
+  const rp=reports[0];$("report").innerHTML=rp?`<details><summary>${esc(rp.title||"最新レポート")}(${ago(rp.createdAt)})</summary><pre>${esc(rp.body||"")}</pre></details>`:'<span class="hint">レポートはまだありません。毎朝・毎週、自動で届きます。</span>';
+  if(typeof drawAll==="function")drawAll();
 }
 function renderStats(){
   const now=Date.now(),day=new Date();day.setHours(0,0,0,0);
@@ -246,10 +266,11 @@ setInterval(all,30000);all();
   db=await claude.use("db");
   if(!db){$("esc").innerHTML='<div class="none err">データベースに接続できません。サインインして開いてください。</div>';$("send").disabled=true;return}
   const bad=e=>$("formMsg").innerHTML='<span class="err">読み込みエラー('+esc(e.code||"")+')</span>';
-  db.collection("departments").onSnapshot(s=>{deps={};s.docs.forEach(d=>deps[d.id]=d.data());renderDepts()},bad);
-  db.collection("requests").limit(200).onSnapshot(s=>{reqs=s.docs.map(d=>({id:d.id,...d.data()}));renderQueue();renderDepts();renderStats()},bad);
-  db.collection("runs").orderBy("finishedAt","desc").limit(200).onSnapshot(s=>{runs=s.docs.map(d=>d.data());renderRuns();renderStats()},bad);
+  db.collection("departments").onSnapshot(s=>{deps={};s.docs.forEach(d=>deps[d.id]=d.data());renderDepts();renderEsc()},bad);
+  db.collection("requests").limit(200).onSnapshot(s=>{reqs=s.docs.map(d=>({id:d.id,...d.data()}));renderQueue();renderDepts();renderStats();renderEsc()},bad);
+  db.collection("runs").orderBy("finishedAt","desc").limit(200).onSnapshot(s=>{runs=s.docs.map(d=>({id:d.id,...d.data()}));renderRuns();renderStats();renderEsc()},bad);
   db.collection("escalations").limit(100).onSnapshot(s=>{escs=s.docs.map(d=>({id:d.id,...d.data()}));renderEsc()},bad);
+  db.collection("reports").orderBy("createdAt","desc").limit(1).onSnapshot(s=>{reports=s.docs.map(d=>d.data());renderEsc()},bad);
   $("form").addEventListener("submit",async ev=>{
     ev.preventDefault();const b=$("send");b.disabled=true;$("formMsg").textContent="送信中…";
     try{await db.collection("requests").add({dept:$("dept").value,topic:$("topic").value.trim(),notes:$("notes").value.trim(),status:"pending",createdAt:new Date().toISOString()});

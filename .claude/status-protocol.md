@@ -21,7 +21,8 @@
 入力不足や社長の判断が必要なとき:
 1. 自分の stage を `blocked` にし、summary に何が止まったかを書く。
 2. `escalations` コレクションに新規1件(doc_id は `<runId>-<stage id>`): `{dept, stage, runId, question(社長に聞きたいこと1-2文。選択肢があれば並べる), status:"open", createdAt}`。ArtifactData が使えなければ `runs/{runId}/escalation.md` に書く。
-3. 作業を終了して親に戻る。推測で埋めない。
+3. `PushNotification` ツールが使えるなら、社長のスマホに1行で通知する(例: 「営業部が止まっています: 予算上限を教えてください」)。使えなくても止まらない。
+4. 作業を終了して親に戻る。推測で埋めない。
 
 ## 親(`/run-pipeline`)が書くもの
 部署の `state`(`idle`/`running`/`done`/`blocked`)・`topic`・`runId`・`note`、`runs` 履歴、`requests` の状態。エージェントは自分の stage と escalation だけ書く。
