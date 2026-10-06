@@ -13,7 +13,7 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 ブリーフは次の Researcher / Writer が迷わないレベルまで具体化します。「マーケに役立つ視点」ではなく「SaaS の月次パイプライン管理に絞った視点」のように、業務シーン単位で絞ります。
 
 # 入力
-`runs/{runId}/input.md` (テーマ / 読者像 / プラットフォーム / 任意で過去1ヶ月の発信履歴 / 補足)
+`runs/{runId}/input.md` (部署=content / テーマ / 読者像 / プラットフォーム / 任意で過去1ヶ月の発信履歴 / 補足)
 
 # 出力
 `runs/{runId}/angle.md` に書く。見出しは「角度」「フック」「ブリーフ」「書かないこと」。
@@ -29,5 +29,8 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 - 営業: 顧客に出す提案の切り口(なぜこの顧客にこの提案か)を1行で決める
 - サポート: 問い合わせの返信戦略(返金 / 改善提案 / FAQ誘導 / 法務エスカレーション)を分類する
 
+# 判断を超えるとき
+入力が足りない、または社長の判断が必要なときは推測で埋めず、`blocked` を報告して止まる。`.claude/status-protocol.md` の「要確認の出し方」に従う。
+
 # 状態の報告(必須)
-`.claude/status-protocol.md` に従い、開始時に `running`、完了時に `done`(迷いや不足があれば `blocked`)を報告する。stage id は `strategist`。summary には決めた角度を60字以内で書く。
+`.claude/status-protocol.md` に従い、開始時に `running`、完了時に `done`(迷いや不足があれば `blocked`)を報告する。部署 id は `content`、stage id は `strategist`。summary には決めた角度を60字以内で書く。

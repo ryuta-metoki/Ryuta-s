@@ -35,5 +35,8 @@ tools: Read, Write, Edit, Glob, Grep
 - サポート: 返信下書き(KB 検索結果を引用)
 - 経営判断: 意思決定メモ(考え方 + 選択肢 + 推奨)
 
+# 判断を超えるとき
+入力が足りない、または社長の判断が必要なときは推測で埋めず、`blocked` を報告して止まる。`.claude/status-protocol.md` の「要確認の出し方」に従う。
+
 # 状態の報告(必須)
-`.claude/status-protocol.md` に従う。stage id は `writer`。summary には字数と章数を書く。
+`.claude/status-protocol.md` に従う。部署 id は `content`、stage id は `writer`。summary には字数と章数を書く。

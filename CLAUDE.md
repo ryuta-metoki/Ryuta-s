@@ -1,18 +1,29 @@
-# 1人社長 5体エージェント構成
+# 1人社長の会社: 5部署 × 5体
 
 業務を5工程(戦略 → 事実 → 実行 → 削減 → 配信)に分け、各工程を独立した context window のサブエージェントに任せる。1つのセッションに全役割を兼任させると起きる context 汚染を、構造で防ぐ。
 
 ## ダッシュボード
 - URL: https://claude.ai/artifact/YWSfZCbDpMBzmyLdxWXJfh
-- 5体の状態・依頼フォーム・最近の成果物を1画面で見られる。スマホからも依頼できる。
-- DB: `pipeline/current`(いまの状態) / `requests`(依頼) / `runs`(成果物)。
+- 社長を頂点に5部署・25体の状態、社長への要確認、今日/7日間の実績、依頼フォーム、成果物を1画面で見られる。スマホからも依頼・回答できる。
+- DB: `departments/<部署id>`(いまの状態) / `requests`(依頼) / `runs`(成果物と実績) / `escalations`(社長への要確認)。
 
 ## 既定値(依頼に指定がなければ使う)
 - 読者像: 1人会社経営者・フリーランス
 - プラットフォーム: note記事 + Xスレッド
 - トーン: ですます調
 
-## 5体と受け渡し
+## 5部署
+| 部署 | id | エージェント名 |
+|---|---|---|
+| 発信 | content | content-{strategist,researcher,writer,editor,publisher} |
+| 営業 | sales | sales-… |
+| サポート | support | support-… |
+| リサーチ | research | research-… |
+| 経営判断 | exec | exec-… |
+
+外部への送信・投稿・公開は一切しない。下書きまでで止め、実行は社長が行う。返金・契約撤回・法務・経営判断は必ず社長への要確認に上げる。
+
+## 5体と受け渡し(どの部署も同じ)
 | 順 | agent | 入力 | 出力 |
 |---|---|---|---|
 | 1 | content-strategist | input.md | angle.md |
@@ -26,7 +37,7 @@
 - 状態の報告は `.claude/status-protocol.md` に従う。
 
 ## 実行
-- 一括: `/run-content-pipeline [テーマ]`
+- 一括: `/run-pipeline [部署id] [テーマ]`。部署を省略すると、ダッシュボードの未処理の依頼を古い順に1件処理する。
 - 1体ずつ: 「content-strategist を使って runs/{runId}/input.md を処理して」のように呼ぶ。最初の数回はこちらで出力を確認しながら進める。
 
 ## 改善ループ

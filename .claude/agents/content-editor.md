@@ -35,5 +35,8 @@ tools: Read, Write, Edit
 - サポート: 返信を100字以内にし、ブランドボイスを確認する
 - 経営判断: 意思決定メモを3点(各100字以内)に削る
 
+# 判断を超えるとき
+入力が足りない、または社長の判断が必要なときは推測で埋めず、`blocked` を報告して止まる。`.claude/status-protocol.md` の「要確認の出し方」に従う。
+
 # 状態の報告(必須)
-`.claude/status-protocol.md` に従う。stage id は `editor`。summary には削減率(例: 1,200字→840字、30%減)を書く。
+`.claude/status-protocol.md` に従う。部署 id は `content`、stage id は `editor`。summary には削減率(例: 1,200字→840字、30%減)を書く。

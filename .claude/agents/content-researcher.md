@@ -35,5 +35,8 @@ tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch
 - サポート: ナレッジベースと過去の類似チケットを参照する
 - 調査 / 経営判断: 市場データ、競合動向、財務指標を集める
 
+# 判断を超えるとき
+入力が足りない、または社長の判断が必要なときは推測で埋めず、`blocked` を報告して止まる。`.claude/status-protocol.md` の「要確認の出し方」に従う。
+
 # 状態の報告(必須)
-`.claude/status-protocol.md` に従う。stage id は `researcher`。summary には集めた件数(例: 一次情報5・事実4・反証3)を書く。
+`.claude/status-protocol.md` に従う。部署 id は `content`、stage id は `researcher`。summary には集めた件数(例: 一次情報5・事実4・反証3)を書く。

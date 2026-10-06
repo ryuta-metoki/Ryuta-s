@@ -1,174 +1,178 @@
-<title>発信パイプライン管制</title>
+<title>ひとり社長の会社</title>
 <style>
-/* Layout: one screen. Top = current run banner, middle = 5-stage line, bottom = request form + queue + recent outputs. */
+/* Layout: top = 社長への要確認 + 実績, middle = org chart (社長 → 5部署 → 5体 in handoff order), bottom = 依頼 + 成果物. Desktop fits one screen. */
 :root{
-  --bg:#f3f5f2; --panel:#ffffff; --ink:#18221e; --sub:#5b6a63; --line:#d8dfda;
-  --accent:#0e6b5b; --accent-ink:#ffffff;
-  --run:#b86a00; --run-bg:#fff1d6; --ok:#1c7a4a; --ok-bg:#dff3e6; --wait-bg:#e8ece9; --bad:#b3261e; --bad-bg:#fbe3e0;
-  --font:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --bg:#f1f3f0; --panel:#ffffff; --ink:#17211d; --sub:#5a6962; --line:#d6ddd8; --line2:#c2ccc6;
+  --accent:#0d6a5a; --accent-ink:#ffffff;
+  --run:#b36500; --run-bg:#fff0d2; --ok:#1b7a49; --ok-bg:#ddf2e5; --wait-bg:#e7ebe8; --bad:#b3261e; --bad-bg:#fbe2df;
+  --font:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f1512; --panel:#18211d; --ink:#e6eee9; --sub:#93a39a; --line:#2b3832;
-  --accent:#4fc3a8; --accent-ink:#06211a;
-  --run:#f2b45a; --run-bg:#3a2a0d; --ok:#6fd49b; --ok-bg:#12301f; --wait-bg:#222d27; --bad:#ff8a80; --bad-bg:#3b1815; color-scheme:dark}}
+  --bg:#0e1411; --panel:#17201c; --ink:#e5ede8; --sub:#92a299; --line:#2a3731; --line2:#3a4a42;
+  --accent:#4fc3a8; --accent-ink:#06211a; --run:#f2b45a; --run-bg:#3a2a0d; --ok:#6fd49b; --ok-bg:#12301f; --wait-bg:#212c26; --bad:#ff8a80; --bad-bg:#3b1815; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f1512; --panel:#18211d; --ink:#e6eee9; --sub:#93a39a; --line:#2b3832;
-  --accent:#4fc3a8; --accent-ink:#06211a;
-  --run:#f2b45a; --run-bg:#3a2a0d; --ok:#6fd49b; --ok-bg:#12301f; --wait-bg:#222d27; --bad:#ff8a80; --bad-bg:#3b1815; color-scheme:dark}
+  --bg:#0e1411; --panel:#17201c; --ink:#e5ede8; --sub:#92a299; --line:#2a3731; --line2:#3a4a42;
+  --accent:#4fc3a8; --accent-ink:#06211a; --run:#f2b45a; --run-bg:#3a2a0d; --ok:#6fd49b; --ok-bg:#12301f; --wait-bg:#212c26; --bad:#ff8a80; --bad-bg:#3b1815; color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;padding-inline:16px;padding-block:16px 32px}
-.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13.5px;line-height:1.5;padding-inline:16px;padding-block:14px 28px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 h1,h2,h3,p{margin:0}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
-.banner h1{font-size:18px;font-weight:700}
-.banner .now{flex:1 1 260px;min-width:0;color:var(--sub)}
-.banner .now b{color:var(--ink);font-weight:700}
-.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px;white-space:nowrap}
-.s-idle,.s-pending{background:var(--wait-bg);color:var(--sub)}
-.s-running{background:var(--run-bg);color:var(--run)}
-.s-done{background:var(--ok-bg);color:var(--ok)}
-.s-blocked{background:var(--bad-bg);color:var(--bad)}
-.line{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
-.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0;position:relative}
-.stage.running{border-color:var(--run);box-shadow:0 0 0 2px var(--run-bg)}
-.stage.done{border-color:var(--ok)}
-.stage.blocked{border-color:var(--bad)}
-.stage .top{display:flex;justify-content:space-between;align-items:center;gap:6px}
-.stage .n{font-family:var(--mono);color:var(--sub);font-size:12px}
-.stage h3{font-size:15px}
-.stage .role{color:var(--sub);font-size:12.5px}
-.stage .io{font-size:12px;color:var(--sub);border-top:1px dashed var(--line);padding-top:6px}
-.stage .io b{color:var(--ink);font-weight:500}
-.stage .sum{font-size:13px;min-height:2.6em;overflow-wrap:anywhere}
-.stage .at{font-family:var(--mono);font-size:11px;color:var(--sub)}
-.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.card h2{font-size:15px}
-label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--sub)}
-input,select,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
-textarea{resize:vertical;min-height:56px}
-:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-button{font:inherit;font-weight:700;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:8px 14px;cursor:pointer}
-button.ghost{background:transparent;color:var(--accent)}
-button:disabled{opacity:.5;cursor:default}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.list{display:flex;flex-direction:column;gap:8px}
-.item{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-width:0}
-.item .t{font-weight:700;overflow-wrap:anywhere}
-.item .m{font-size:12px;color:var(--sub);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.empty{color:var(--sub);font-size:13px;border:1px dashed var(--line);border-radius:8px;padding:10px}
-pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);font-size:12px;background:var(--bg);border-radius:6px;padding:8px;max-height:220px;overflow:auto}
 .hint{font-size:12px;color:var(--sub)}
 .err{color:var(--bad);font-size:12px}
-@media(max-width:900px){.line{grid-template-columns:repeat(2,minmax(0,1fr))}.cols{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:480px){.line{grid-template-columns:minmax(0,1fr)}}
-@media(prefers-reduced-motion:no-preference){.stage.running .pill{animation:pulse 1.6s ease-in-out infinite}@keyframes pulse{50%{opacity:.55}}}
+.pill{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:99px;white-space:nowrap}
+.s-idle,.s-pending{background:var(--wait-bg);color:var(--sub)}.s-running{background:var(--run-bg);color:var(--run)}
+.s-done{background:var(--ok-bg);color:var(--ok)}.s-blocked,.s-open{background:var(--bad-bg);color:var(--bad)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.top{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px}
+.card h2{font-size:14px;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.esc{display:flex;flex-direction:column;gap:8px}
+.esc .e{border:1px solid var(--bad);background:var(--bad-bg);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.esc .q{overflow-wrap:anywhere}.esc .meta{font-size:12px;color:var(--sub)}
+.none{color:var(--sub);border:1px dashed var(--line2);border-radius:8px;padding:9px 10px}
+.stats{display:grid;grid-template-columns:auto repeat(2,1fr);gap:4px 12px;align-items:center}
+.stats .h{font-size:11.5px;color:var(--sub)}
+.bar{height:6px;border-radius:3px;background:var(--wait-bg);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.tot{display:flex;gap:18px;margin-bottom:8px}.tot b{font-size:20px;font-family:var(--mono)}
+.org{display:flex;flex-direction:column;align-items:center;gap:0}
+.ceo{background:var(--accent);color:var(--accent-ink);font-weight:700;border-radius:8px;padding:6px 18px}
+.rail{width:calc(80% + 0px);max-width:1000px;height:14px;border:1px solid var(--line2);border-bottom:0;border-radius:8px 8px 0 0;margin-top:0;border-top:0}
+.trunk{width:1px;height:12px;background:var(--line2)}
+.depts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;width:100%}
+.dept{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.dept.running{border-color:var(--run);box-shadow:0 0 0 2px var(--run-bg)}.dept.blocked{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-bg)}
+.dept .hd{display:flex;justify-content:space-between;align-items:center;gap:6px}.dept h3{font-size:14.5px}
+.chain{display:flex;flex-direction:column;gap:0}
+.node{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12.5px;background:var(--bg)}
+.node .d{width:9px;height:9px;border-radius:50%;background:var(--line2);flex:none}
+.node.running{border-color:var(--run);background:var(--run-bg)}.node.running .d{background:var(--run)}
+.node.done .d{background:var(--ok)}.node.blocked{border-color:var(--bad);background:var(--bad-bg)}.node.blocked .d{background:var(--bad)}
+.node .st{margin-left:auto;font-size:11px;color:var(--sub)}
+.arrow{align-self:center;color:var(--line2);font-size:10px;line-height:9px}
+.now{font-size:12.5px;min-height:3.2em;overflow-wrap:anywhere}
+.foot{font-size:11.5px;color:var(--sub);display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap}
+.bot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:12px}
+label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--sub)}
+input,select,textarea{font:inherit;font-size:13.5px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+textarea{resize:vertical;min-height:48px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:inherit;font-weight:700;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:6px 12px;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}button:disabled{opacity:.5;cursor:default}
+.list{display:flex;flex-direction:column;gap:8px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.item{border:1px solid var(--line);border-radius:8px;padding:7px 10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.item .t{font-weight:700;overflow-wrap:anywhere}.item .m{font-size:12px;color:var(--sub);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+details summary{cursor:pointer;color:var(--accent);font-size:12.5px}
+pre{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);font-size:12px;background:var(--bg);border-radius:6px;padding:8px;max-height:200px;overflow:auto}
+@media(max-width:1000px){.depts{grid-template-columns:repeat(2,minmax(0,1fr))}.top,.bot{grid-template-columns:minmax(0,1fr)}.rail{display:none}}
+@media(max-width:520px){.depts{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:no-preference){.node.running .d{animation:pulse 1.4s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 
 <div class="wrap">
-  <header class="banner">
-    <h1>発信パイプライン管制</h1>
-    <span id="runPill" class="pill s-idle">待機中</span>
-    <p class="now" id="now">読み込み中…</p>
-    <span class="hint mono" id="clock"></span>
-  </header>
+  <div class="top">
+    <section class="card">
+      <h2>社長への要確認 <span class="pill s-idle" id="escCount">0件</span></h2>
+      <div class="esc" id="esc"></div>
+    </section>
+    <section class="card">
+      <h2>実績</h2>
+      <div class="tot"><div><div class="hint">今日の完了</div><b id="tToday">0</b></div><div><div class="hint">7日間の完了</div><b id="tWeek">0</b></div><div><div class="hint">処理待ち依頼</div><b id="tQueue">0</b></div></div>
+      <div class="stats" id="stats"></div>
+    </section>
+  </div>
 
-  <section class="line" id="line" aria-label="5体のエージェント"></section>
+  <section class="org" aria-label="組織図">
+    <div class="ceo">社長(あなた)</div><div class="trunk"></div><div class="rail"></div>
+    <div class="depts" id="depts"></div>
+  </section>
 
-  <div class="cols">
+  <div class="bot">
     <section class="card">
       <h2>依頼する</h2>
       <form id="form" class="list">
-        <label for="topic">テーマ<input id="topic" required maxlength="200" placeholder="例: AIエージェントを1人社長が使う理由"></label>
-        <label for="audience">想定読者<input id="audience" maxlength="200" value="1人会社経営者・フリーランス"></label>
-        <label for="platform">プラットフォーム
-          <select id="platform">
-            <option>note記事 + Xスレッド</option><option>note記事</option><option>Xスレッド</option><option>メルマガ</option><option>Slack</option>
-          </select></label>
-        <label for="notes">補足(任意)<textarea id="notes" maxlength="800" placeholder="避けたい話題、使いたい一次情報、締切など"></textarea></label>
+        <label for="dept">担当する部署<select id="dept"></select></label>
+        <label for="topic">依頼内容<input id="topic" required maxlength="200" placeholder="例: 来週のnote記事のテーマ / ○○社への提案 / 問い合わせ返信"></label>
+        <label for="notes">補足(相手・読者・媒体・締切など)<textarea id="notes" maxlength="800"></textarea></label>
         <div class="row"><button id="send" type="submit">依頼を送る</button><span class="hint" id="formMsg"></span></div>
       </form>
-      <h2>依頼キュー</h2>
-      <div class="list" id="queue"></div>
-      <p class="hint">送った依頼は、Claude Code で <span class="mono">/run-content-pipeline</span> を実行すると5体が順に処理します。</p>
+      <h2 style="margin-top:10px">依頼キュー</h2><div class="list" id="queue"></div>
+      <p class="hint" style="margin-top:6px">依頼は <span class="mono">/run-pipeline</span> の実行で5体が順に処理します。</p>
     </section>
-
     <section class="card">
-      <h2>最近の成果物</h2>
-      <div class="list" id="runs"></div>
+      <h2>最近の成果物</h2><div class="list" id="runs"></div>
     </section>
   </div>
 </div>
 
 <script>
-const STAGES=[
-  {id:"strategist",name:"ストラテジスト",role:"切り口を決める",inp:"テーマ・読者・媒体",out:"角度 / フック / ブリーフ / 書かないこと"},
-  {id:"researcher",name:"リサーチャー",role:"事実で角度を支える",inp:"ブリーフ",out:"一次情報 / 主要事実 / 反証3件"},
-  {id:"writer",name:"ライター",role:"ブリーフ通りに書き切る",inp:"ブリーフ + リサーチ",out:"フルドラフト"},
-  {id:"editor",name:"エディター",role:"30%削る冷静な目",inp:"ドラフトのみ",out:"編集済み草稿 + 変更ログ"},
-  {id:"publisher",name:"パブリッシャー",role:"媒体に合わせて出荷",inp:"編集済み草稿 + 媒体",out:"note / Xスレ等の最終ファイル"}
-];
-const LABEL={idle:"待機",pending:"待機",running:"実行中",done:"完了",blocked:"要確認"};
+const DEPTS=[{id:"content",name:"発信"},{id:"sales",name:"営業"},{id:"support",name:"サポート"},{id:"research",name:"リサーチ"},{id:"exec",name:"経営判断"}];
+const ROLES=[{id:"strategist",name:"戦略"},{id:"researcher",name:"リサーチ"},{id:"writer",name:"執筆"},{id:"editor",name:"編集"},{id:"publisher",name:"配信"}];
+const LABEL={idle:"待機",pending:"待ち",running:"実行中",done:"完了",blocked:"要確認"};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const ago=iso=>{if(!iso)return"";const d=(Date.now()-new Date(iso))/1000;if(isNaN(d))return"";
-  if(d<60)return"たった今";if(d<3600)return Math.floor(d/60)+"分前";if(d<86400)return Math.floor(d/3600)+"時間前";return Math.floor(d/86400)+"日前"};
-let cur=null,reqs=[],runs=[];
+const dname=id=>(DEPTS.find(d=>d.id===id)||{name:id||"?"}).name;
+const ago=iso=>{if(!iso)return"";const d=(Date.now()-new Date(iso))/1000;if(isNaN(d))return"";if(d<60)return"たった今";if(d<3600)return Math.floor(d/60)+"分前";if(d<86400)return Math.floor(d/3600)+"時間前";return Math.floor(d/86400)+"日前"};
+let db=null,deps={},reqs=[],runs=[],escs=[];
+$("dept").innerHTML=DEPTS.map(d=>`<option value="${d.id}">${d.name}</option>`).join("");
 
-function renderLine(){
-  const st=(cur&&cur.stages)||{};
-  $("line").innerHTML=STAGES.map((s,i)=>{
-    const x=st[s.id]||{};const state=x.state||"idle";
-    return `<article class="stage ${state}">
-      <div class="top"><span class="n">${i+1} / 5</span><span class="pill s-${state}">${LABEL[state]||state}</span></div>
-      <h3>${s.name}</h3><div class="role">${s.role}</div>
-      <div class="sum">${x.summary?esc(x.summary):'<span class="hint">まだ動いていません</span>'}</div>
-      <div class="at">${x.updatedAt?ago(x.updatedAt):""}</div>
-      <div class="io">入力: <b>${s.inp}</b><br>出力: <b>${s.out}</b></div>
-    </article>`}).join("");
-  const pill=$("runPill");
-  const state=cur?.state||"idle";
-  pill.className="pill s-"+state;pill.textContent=state==="running"?"実行中":state==="done"?"完了":state==="blocked"?"要確認":"待機中";
-  const active=STAGES.findIndex(s=>(st[s.id]||{}).state==="running");
-  if(!cur||state==="idle")$("now").innerHTML="いま動いている依頼はありません。左のフォームから依頼できます。";
-  else $("now").innerHTML=`<b>${esc(cur.topic||"")}</b> ${active>=0?`／ ${STAGES[active].name}が作業中(${active+1}/5)`:state==="done"?"／ 5体すべて完了":""}${cur.note?` ／ ${esc(cur.note)}`:""}`;
+function renderEsc(){
+  const open=escs.filter(e=>e.status==="open").sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
+  $("escCount").textContent=open.length+"件";$("escCount").className="pill "+(open.length?"s-open":"s-idle");
+  $("esc").innerHTML=open.length?open.map(e=>`<div class="e" data-id="${esc(e.id)}"><div class="meta">${esc(dname(e.dept))}部 ／ ${esc(e.stage||"")} ／ ${ago(e.createdAt)}</div>
+    <div class="q">${esc(e.question)}</div>
+    <div class="row"><input aria-label="回答" class="ans" maxlength="400" placeholder="回答・指示を書く" style="flex:1 1 200px"><button class="res">回答して解決</button></div></div>`).join("")
+    :'<div class="none">いま社長の判断を待っているものはありません。</div>';
+  $("esc").querySelectorAll(".e").forEach(el=>el.querySelector(".res").onclick=async()=>{
+    if(!db)return;const id=el.dataset.id,a=el.querySelector(".ans").value.trim();
+    try{await db.doc("escalations/"+id).update({status:"resolved",answer:a,resolvedAt:new Date().toISOString()})}catch(e){el.querySelector(".meta").insertAdjacentHTML("beforeend",' <span class="err">保存できませんでした</span>')}});
+}
+function renderStats(){
+  const now=Date.now(),day=new Date();day.setHours(0,0,0,0);
+  const per={};DEPTS.forEach(d=>per[d.id]={t:0,w:0});
+  runs.forEach(r=>{const t=new Date(r.finishedAt).getTime();if(isNaN(t)||!per[r.dept])return;if(t>=day.getTime())per[r.dept].t++;if(t>=now-7*864e5)per[r.dept].w++});
+  const T=Object.values(per).reduce((a,x)=>a+x.t,0),W=Object.values(per).reduce((a,x)=>a+x.w,0),mx=Math.max(1,...Object.values(per).map(x=>x.w));
+  $("tToday").textContent=T;$("tWeek").textContent=W;$("tQueue").textContent=reqs.filter(r=>r.status==="pending").length;
+  $("stats").innerHTML='<span></span><span class="h">今日</span><span class="h">7日間</span>'+DEPTS.map(d=>`<span>${d.name}</span><span class="mono">${per[d.id].t}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><span class="mono" style="min-width:1.5em">${per[d.id].w}</span><span class="bar" style="flex:1"><i style="width:${per[d.id].w/mx*100}%"></i></span></span>`).join("");
+}
+function renderDepts(){
+  $("depts").innerHTML=DEPTS.map(d=>{
+    const x=deps[d.id]||{},st=x.stages||{},state=x.state||"idle";
+    const q=reqs.filter(r=>r.dept===d.id&&r.status!=="done").length;
+    const act=ROLES.find(r=>(st[r.id]||{}).state==="running")||ROLES.find(r=>(st[r.id]||{}).state==="blocked");
+    const nowTxt=state==="idle"?'<span class="hint">待機中。依頼を待っています。</span>':`<b>${esc(x.topic||"")}</b>${act?`<br>${act.name}: ${esc((st[act.id]||{}).summary||"")}`:state==="done"?"<br>5体すべて完了":""}${x.note?`<br><span class="err">${esc(x.note)}</span>`:""}`;
+    return `<article class="dept ${state}"><div class="hd"><h3>${d.name}部</h3><span class="pill s-${state}">${LABEL[state]||state}</span></div>
+      <div class="chain">${ROLES.map((r,i)=>{const s=(st[r.id]||{}).state||"idle";return (i?'<div class="arrow">▼</div>':"")+`<div class="node ${s}" title="${esc((st[r.id]||{}).summary||"")}"><span class="d"></span>${r.name}<span class="st">${LABEL[s]}</span></div>`}).join("")}</div>
+      <div class="now">${nowTxt}</div>
+      <div class="foot"><span>待ち依頼 ${q}件</span><span>${x.updatedAt?ago(x.updatedAt):""}</span></div></article>`}).join("");
 }
 function renderQueue(){
   const open=reqs.filter(r=>r.status!=="done").sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
-  $("queue").innerHTML=open.length?open.map(r=>`<div class="item"><div class="t">${esc(r.topic)}</div>
-    <div class="m"><span class="pill s-${r.status==="running"?"running":"pending"}">${r.status==="running"?"処理中":"待ち"}</span><span>${esc(r.platform||"")}</span><span>${ago(r.createdAt)}</span></div></div>`).join("")
-    :'<div class="empty">待ちの依頼はありません。</div>';
+  $("queue").innerHTML=open.length?open.map(r=>`<div class="item"><div class="t">${esc(r.topic)}</div><div class="m"><span class="pill s-${r.status==="running"?"running":"pending"}">${r.status==="running"?"処理中":"待ち"}</span><span>${esc(dname(r.dept))}部</span><span>${ago(r.createdAt)}</span></div></div>`).join(""):'<div class="none">待ちの依頼はありません。</div>';
 }
 function renderRuns(){
   const l=[...runs].sort((a,b)=>(b.finishedAt||"").localeCompare(a.finishedAt||"")).slice(0,6);
-  $("runs").innerHTML=l.length?l.map((r,i)=>`<div class="item"><div class="t">${esc(r.topic)}</div>
-    <div class="m"><span class="pill s-done">完了</span><span>${esc(r.platform||"")}</span><span>${ago(r.finishedAt)}</span></div>
-    ${r.angle?`<div>角度: ${esc(r.angle)}</div>`:""}${r.hook?`<div>フック: ${esc(r.hook)}</div>`:""}
-    ${r.final?`<div class="row"><button class="ghost" data-copy="${i}">最終ファイルをコピー</button></div><pre>${esc(r.final)}</pre>`:""}</div>`).join("")
-    :'<div class="empty">まだ成果物がありません。最初の依頼を送ると、ここに最終ファイルが並びます。</div>';
-  $("runs").querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{
-    const t=l[+b.dataset.copy].final;try{await navigator.clipboard.writeText(t);b.textContent="コピーしました"}catch{b.textContent="下の文を選択してコピー"}});
+  $("runs").innerHTML=l.length?l.map((r,i)=>`<div class="item"><div class="t">${esc(r.topic)}</div><div class="m"><span class="pill s-done">完了</span><span>${esc(dname(r.dept))}部</span><span>${ago(r.finishedAt)}</span></div>
+    ${r.angle?`<div>${esc(r.angle)}</div>`:""}${r.final?`<details><summary>最終ファイルを見る</summary><div class="row" style="margin-top:6px"><button class="ghost" data-copy="${i}">コピー</button></div><pre>${esc(r.final)}</pre></details>`:""}</div>`).join("")
+    :'<div class="none">まだ成果物がありません。依頼を送ると、ここに最終ファイルが並びます。</div>';
+  $("runs").querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const t=l[+b.dataset.copy].final;try{await navigator.clipboard.writeText(t);b.textContent="コピーしました"}catch{b.textContent="下の文を選択してコピー"}});
 }
-function tick(){$("clock").textContent=new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});renderLine();renderQueue();renderRuns()}
-setInterval(tick,30000);renderLine();renderQueue();renderRuns();
+function all(){renderEsc();renderStats();renderDepts();renderQueue();renderRuns()}
+setInterval(all,30000);all();
 
 (async()=>{
-  const db=await claude.use("db");
-  if(!db){$("now").innerHTML='<span class="err">データベースに接続できません。サインインした状態で開いてください。</span>';$("send").disabled=true;return}
-  db.doc("pipeline/current").onSnapshot(s=>{cur=s.exists?s.data():null;renderLine()},e=>$("now").textContent="状態を読めません: "+e.code);
-  db.collection("requests").limit(100).onSnapshot(s=>{reqs=s.docs.map(d=>({id:d.id,...d.data()}));renderQueue()});
-  db.collection("runs").orderBy("finishedAt","desc").limit(10).onSnapshot(s=>{runs=s.docs.map(d=>d.data());renderRuns()});
+  db=await claude.use("db");
+  if(!db){$("esc").innerHTML='<div class="none err">データベースに接続できません。サインインして開いてください。</div>';$("send").disabled=true;return}
+  const bad=e=>$("formMsg").innerHTML='<span class="err">読み込みエラー('+esc(e.code||"")+')</span>';
+  db.collection("departments").onSnapshot(s=>{deps={};s.docs.forEach(d=>deps[d.id]=d.data());renderDepts()},bad);
+  db.collection("requests").limit(200).onSnapshot(s=>{reqs=s.docs.map(d=>({id:d.id,...d.data()}));renderQueue();renderDepts();renderStats()},bad);
+  db.collection("runs").orderBy("finishedAt","desc").limit(200).onSnapshot(s=>{runs=s.docs.map(d=>d.data());renderRuns();renderStats()},bad);
+  db.collection("escalations").limit(100).onSnapshot(s=>{escs=s.docs.map(d=>({id:d.id,...d.data()}));renderEsc()},bad);
   $("form").addEventListener("submit",async ev=>{
     ev.preventDefault();const b=$("send");b.disabled=true;$("formMsg").textContent="送信中…";
-    try{
-      await db.collection("requests").add({topic:$("topic").value.trim(),audience:$("audience").value.trim(),platform:$("platform").value,
-        notes:$("notes").value.trim(),status:"pending",createdAt:new Date().toISOString()});
-      $("topic").value="";$("notes").value="";$("formMsg").textContent="依頼を送りました";
-    }catch(e){$("formMsg").innerHTML='<span class="err">送れませんでした('+esc(e.code||"error")+')。書き込み権限を確認してください。</span>'}
-    b.disabled=false;
-  });
+    try{await db.collection("requests").add({dept:$("dept").value,topic:$("topic").value.trim(),notes:$("notes").value.trim(),status:"pending",createdAt:new Date().toISOString()});
+      $("topic").value="";$("notes").value="";$("formMsg").textContent="依頼を送りました"}
+    catch(e){$("formMsg").innerHTML='<span class="err">送れませんでした('+esc(e.code||"error")+')</span>'}
+    b.disabled=false});
 })();
 </script>
