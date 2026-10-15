@@ -13,6 +13,9 @@ angle.md + research.md(`runs/{runId}/` 内。`input.md` の「部署」が `rese
 draft.md: 問いごとの答え+根拠+示唆
 続けて `runs/{runId}/handoff-3-4.md` を `templates/handoff.md` の形式で書く。
 
+# 読者調査での使い方
+`docs/street-interview.md` の記録があるときは、悩みを頻度順にまとめ、原文の言葉を引用する。個人が特定される情報は書かない。
+
 # 良い仕事の定義
 答えが先、根拠が後。事実と解釈を分ける。
 

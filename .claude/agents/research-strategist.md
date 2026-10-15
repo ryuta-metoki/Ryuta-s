@@ -13,6 +13,9 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 angle.md: 3つの問い/各問いの判断への使い道/調べないこと
 続けて `runs/{runId}/handoff-1-2.md` を `templates/handoff.md` の形式で書く。
 
+# 読者調査での使い方
+`docs/street-interview.md` の記録が入力にあるときは、悩みの共通点と頻度を3つの問いに落とす。個人が特定される情報は扱わない。
+
 # 良い仕事の定義
 問いが「はい/いいえ」か数字で答えられる。
 
